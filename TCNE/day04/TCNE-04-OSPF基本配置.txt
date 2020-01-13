@@ -1,0 +1,353 @@
+
+
+路由条目类型： 
+   1.直连路由
+   2.非直连路由
+       -静态
+	   -动态
+	   
+	   IGP:(内部网关路由协议)
+	   [在同一个公司内部运行的路由协议]
+	     DV：（距离矢量路由协议 -- distance vector）
+	      RIP : 一般是用在小型网络中；网络直径不能超过16个路由器；
+		  EIGRP：支持的路由条目的最大传输跳数是 255 跳；[cisco私有]
+		  
+		 LS：（链路状态路由协议 -- link state ） 
+		  ISIS：公有标准协议；理论上，运行ISIS网络的规模，没有限制
+		        [传输的是CLNP的路由信息；]
+				[可以同时传输 IP 路由信息；]
+				[可以同时传输 MAC 地址信息；]
+		  OSPF：模仿着 ISIS 开发的；  
+		           IPv4 - OSPFv2
+				   IPv6 - OSPFv3
+	   EGP:(外部网关路由协议)
+	   [在不同公司之间运行的路由协议]
+		  BGP
+
+=================================================================
+
+OSPF ： open shortest  path   first 
+        开放式  最短    路径   优先  (路由协议)
+ -概述： 
+      OSPF 是公有标准路由协议，任何厂商设备可以支持；
+	  OSPF 属于 IGP 路由协议，运行在一个公司内部；
+	  OSPF 位于 OSI 模型第三层，协议号为 89；
+	  OSPF 发送报文的方式为组播： 
+	        224.0.0.5 - 表示所有的 OSPF路由器
+			224.0.0.6 - 表示所有的 DR/BDR 
+
+OSPF的工作过程： 
+  1.建立邻接表
+  2.同步数据库
+  3.计算路由表
+ 
+ 
+OSPF 报文类型：
+  1.hello  - 用于邻居的建立、维护与拆除；
+  2.DD     - database  description ，数据库描述报文
+  3.LSR    - link state  request ，链路状态请求
+  4.LSU    - link state  update ，链路状态更新
+  5.LSAck  - link state  acknowlege ，链路状态 确认
+
+OSPF 基本概念： 
+   @ OSPF 进程号
+        主要是在一个路由器本地起作用，用于区分不同的OSPF协议； 
+        取值范围是 1-65535 。
+        如果在配置的时候，不指定 OSPF 进程号，默认是1 ； 
+   @ OSPF router-id 
+        在整个网络中，唯一的表示一个 OSPF 路由器的名字； 
+        确定方式： 
+           1.手动指定 
+           2.自动选举
+                原则如下： 
+                   @首先选举IP地址大的loopback接口作为 router-id 
+                   @其次选择IP地址大的 物理接口的作为 router-id 				   
+  @ OSPF 区域； 
+       -表示： 
+	       #通过十进制数字表示，取值范围是 2 的 32次方； 
+		   #通过点分十进制的方式表示，比如 x.x.x.x ； 
+	   -类型： 
+	       骨干区域   ： 0区域，就是骨干区域
+		   非骨干区域 ： 非0区域，就是非骨干区域
+	   -注意： 
+	       所有的非骨干区域，必须与骨干区域直接相连； 
+
+-------------------------------------------------------------------  
+  
+影响 OSPF 邻居表建立的常见因素： 
+   1.router-id不能相同
+   2.区域 ID 必须相同
+   3.认证必须成功
+   4.掩码必须得相同；【特殊情况下】
+   5.hello 计时器必须相同；
+   6.dead 计时器必须相同； 
+   7.优先级不能全为0；【特殊情况下】
+   
+-----------------------------------------------------------
+
+特殊情况：
+    上述影响因素中，所谓的特殊情况，指的是
+	“在建立邻居的过程中，需要选举 DR/BDR ” 的情况。
+
+
+什么是 DR/BDR ？
+    DR：指定路由器
+	BDR：备份的指定路由器；
+
+为什么选择 DR/BDR ？
+     当同一个网段中，具有多个 OSPF 路由器的时候，
+	 为了实现 OSPF 邻居之间，能够快速的、稳定的，实现数据库同步，
+	 所以，
+	 我们需要在“多个 OSPF 路由器”之间，选择一个最牛的路由器。
+	 其他的路由器，在同步数据库的时候，
+	 都仅仅与“最牛”的路由器，进行数据库的信息同步。
+	 但是，
+	 我们也担心，最牛的挂了，
+	 所以， 
+	 就为最牛的，选择了一个“备份的”设备；
+	 
+	 所谓的最牛的，就称之为：DR（指定路由器）；
+
+DR/BDR的选举原则： 
+    1.首先比较优先级，数值越大越，越好；默认是1；
+    2.其次比较 router-id ， 数值越大，越好；
+
+注意： 
+   1.优先级为0的，没有资格参与 DR/BDR 的竞选；
+     永远只能成为 DRother ；
+   2.所有的路由器，都仅仅与 DR/BDR 建立邻接关系；
+   3.常见的组播地址： 
+        224.0.0.5 - 表示所有的OSPF路由器；   
+		224.0.0.6 - 表示 DR 和 BDR ；
+   4.DR/BDR 表示的是一个 接口的 概念；		
+   
+   
+什么情况下， OSPF 会认为“一个网段中有多个路由器”？
+
+
+   OSPF 判断一个网段中，是否有多个路由器，是基于
+OSPF 的“网络类型” 来决定的。
+
+   常见的 OSPF 网络类型： 
+      1.广播    - 此时OSPF认为，该网段有多个路由器，需要DR/BDR
+      2.非广播  - 此时OSPF认为，该网段有多个路由器，需要DR/BDR
+      3.点到点  - 不需要DR/BDR
+      4.点到多点 - 不需要DR/BDR	  
+   
+---------------------------------------------------------、
+
+OSPF 邻接表中的状态： 
+
+down    ：邻接关系出现故障，挂掉了；
+init    ：初始化状态；
+2-way   : 双向通信状态；[此时两个设备之间可以称之为“邻居”]
+          如果需要 DR/BDR，是在该状态进行选举的；
+exstart ：交换的准备阶段 ，此时传输的是 第一个 DD 报文；
+           在该阶段，确定后续的“交换状态”中的“主动方”。
+		   
+exchange：交换状态，此时传输的也是 DD 报文； 
+loading : 加载
+          主动向邻居设备请求自己没有的那些数据库条目(LSR)
+		  对方邻居设备，就会回应给你相应的数据库条目(LSU)
+		  同时为了确保LSR和 LSU 的可靠传输，双方还得传输 LSAck ；
+full    ：完全邻接。
+          即邻居设备之间的数据库，完全一模一样。  
+
+----------------------------------------------------------
+OSPF 端口参数查看与修改： 
+    interface gi0/0/0 
+	   ospf  timer  hello   * ---> 修改hello计时器；
+	   ospf  timer  dead    * ---> 修改dead计时器；
+	   ospf  dr-priority    * ---> 修改路由器的优先级
+	   ospf  cost           * ---> 修改接口的cost，默认是1；
+	   ospf  network-type   * ---> 修改接口的网络类型；默认是广播；
+	
+	display  ospf  interface  gi0/0/0  -> 查看OPSF接口参数
+	display  ospf  peer  brief  
+  
+-----------------------------------------------------------
+
+OSPF 单区域配置： 【display  ospf  peer brief -> OSPF邻接表】
+  R1： 
+     ospf  
+	   area 0 
+	     network  192.168.1.0  0.0.0.255
+		 network 192.168.12.0  0.0.0.255
+		 quit 
+  R2： 
+     ospf  
+	   area 0 
+	     network  192.168.23.0  0.0.0.255
+		 network  192.168.12.0  0.0.0.255
+		 quit 
+  R3： 
+     ospf  
+	   area 0 
+	     network  192.168.2.0  0.0.0.255
+		 network  192.168.23.0  0.0.0.255
+		 quit 
+
+-------------------------------------------------------------
+
+OSPF 多区域配置： 
+
+R1： 
+  undo terminal monitor
+  system-view
+  sysname R1
+  interface gi0/0/2 
+    ip address  192.168.1.1  24
+	quit 
+  interface gi0/0/0 
+    ip address  192.168.12.1 24 
+	ospf network-type p2p
+	quit 
+	
+  ospf 1 router-id 1.1.1.1
+     area  12 
+	   network  192.168.12.0 0.0.0.255
+	   network 192.168.1.0  0.0.0.255
+	   quit
+	   quit 
+	   
+
+
+R2： 
+  undo terminal monitor
+  system-view
+  sysname R2
+  interface gi0/0/0 
+    ip address  192.168.23.2  24
+	quit 
+  interface gi0/0/1 
+    ip address  192.168.12.2 24 
+	ospf network-type p2p
+	quit 
+	
+  ospf 1 router-id 2.2.2.2
+     area 0 
+	   network 192.168.23.0 0.0.0.255
+     area  12 
+	   network  192.168.12.0 0.0.0.255
+	   quit
+	   quit 
+
+R3： 
+  undo terminal monitor
+  system-view
+  sysname R3
+  interface gi0/0/1 
+    ip address  192.168.23.3  24
+	quit 
+  interface gi0/0/0 
+    ip address  192.168.34.3 24 
+	quit 
+	
+  ospf 1 router-id 3.3.3.3
+     area 0 
+	   network  192.168.23.0 0.0.0.255
+	   network  192.168.34.0  0.0.0.255
+	   quit
+	   quit 
+
+
+
+R4： 
+  undo terminal monitor
+  system-view
+  sysname R4
+  interface gi0/0/1 
+    ip address  192.168.34.4  24
+	quit 
+  interface gi0/0/0 
+    ip address  192.168.45.4 24 
+	quit 
+	
+  ospf 1 router-id 4.4.4.4
+     area 0 
+	   network  192.168.45.0 0.0.0.255
+	   network  192.168.34.0  0.0.0.255
+	   quit
+	   quit 
+
+
+
+
+R5： 
+  undo terminal monitor
+  system-view
+  sysname R5
+  interface gi0/0/0 
+    ip address  192.168.56.5  24
+	quit 
+  interface gi0/0/1 
+    ip address  192.168.45.5 24 
+	quit 
+	
+  ospf 1 router-id 5.5.5.5
+     area 0 
+	   network 192.168.45.0 0.0.0.255
+     area  56 
+	   network  192.168.56.0 0.0.0.255
+	   quit
+	   quit 
+
+
+R6： 
+  undo terminal monitor
+  system-view
+  sysname R6
+  interface gi0/0/2 
+    ip address  192.168.2.254  24
+	quit 
+  interface gi0/0/1 
+    ip address  192.168.56.6 24 
+	ospf dr-priority 0 
+	quit 
+	
+  ospf 1 router-id 6.6.6.6
+     area  56 
+	   network  192.168.56.0 0.0.0.255
+	   network 192.168.2.0  0.0.0.255
+	   quit
+	   quit 
+	   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

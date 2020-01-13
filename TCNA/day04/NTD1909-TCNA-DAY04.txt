@@ -1,0 +1,127 @@
+回顾：
+生成树协议
+
+1.生成树原理
+	链路备份--交换机之间以环状互联--存在广播风暴--在逻辑上断开环路(关闭端口)
+	--断开的链路做为备份链路，随时可以启用----STP协议
+
+	解决问题：既有备份链路，又能防止广播风暴
+
+2.stp选举的步骤：计算关闭哪个端口
+比小
+
+1）选择根网桥(每个广播域，有且只有一个） 
+网桥ID最小
+2）选择根端口(每个非根网桥，有且只有一个)
+	--路径成本最低(端口到根网桥)
+	--直连网桥ID最小
+	
+3）选择指定端口(每根网线上，有且只有一个)
+	--路径成本最低(交换机到根网桥)
+	--自己的网桥ID最小
+
+第三步：端口标识最小
+
+	先比路径成本，再比网桥ID
+	根端口拼别人，指定端口拼自己
+
+3.生成树的其它知识
+	
+1）BPDU:配置BPDU,拓扑变更BPDU
+2）生成树计时器
+	hello时间		2秒
+	转发延迟		15秒    侦听--学习    学习--转发
+	老化时间		20秒
+
+	生成树收敛时间：30-50秒
+		阻塞-- 侦听--学习--转发
+3）端口状态
+禁用	disabled		强制关闭
+阻塞	blocking		只能接收BPDU
+侦听	listening		接收和发送BPDU
+学习	learning		构建MAC地址表
+转发	forwarding	转发数据帧 
+
+
+4.MSTP 多生成树（为vlan选路）
+
+cisco:pvst+  每vlan生成树
+
+生成树域----实例(路)----指定根网桥和允许的vlan
+------------------------------------------------------------------------------------------------
+1.DHCP工作原理
+discover		发现		寻找DHCP服务器
+offer		回应		我就是DHCP服务器
+request		请求		请给我一个IP地址
+ack		确认		给你一个IP
+
+第二次登录网络：
+request		再次请求租用曾经用过的IP
+ack		确认
+nack		不确认
+
+租约更新：
+	--自动更新： 50%   87.5%
+	--手动更新： ipconifg  /renew
+
+租约释放：
+	--自动释放:不能自动更新租约，租约到期
+	--手动释放：ipconfig  /release
+
+2.配置基于全局模式的DHCP服务器
+[dhcp]dhcp enable 			//开启DHCP服务
+
+[dhcp]ip pool  p1					//创建地址池	
+[dhcp-ip-pool-p1]network 192.168.1.0 mask 24		//指定网段
+[dhcp-ip-pool-p1]gateway-list 192.168.1.1		//指定网关	
+[dhcp-ip-pool-p1]dns-list 114.114.114.114		//指定DNS服务器地址
+[dhcp-ip-pool-p1]lease day 0 hour 1 minute 30 		//指定租约
+[dhcp-ip-pool-p1]excluded-ip-address 192.168.1.200 192.168.1.254
+						//指定排除地址
+[dhcp-ip-pool-p1]int g0/0/0	
+[dhcp-GigabitEthernet0/0/0]ip address 192.168.1.1 24	
+[dhcp-GigabitEthernet0/0/0]dhcp select global 		//启用DHCP全局功能	
+
+
+3.配置接口模式的DHCP服务器
+[dhcp]dhcp enable 
+[dhcp]int g0/0/1	
+[dhcp-GigabitEthernet0/0/1]ip address 192.168.1.1 24	
+[dhcp-GigabitEthernet0/0/1]dhcp select interface
+			（网段：端口所在的网段  网关：端口的IP地址）
+		            			
+[dhcp-GigabitEthernet0/0/1]dhcp server dns-list 1.1.1.1
+[dhcp-GigabitEthernet0/0/1]dhcp server excluded-ip-address 192.168.1.200 192.168
+.1.254
+[dhcp-GigabitEthernet0/0/1]dhcp server lease day 1
+
+
+不能更改IP地址，更改地址后一切配置都不存在了
+
+
+4.DHCP中继代理模式
+	帮助不能联系到DHCP服务器的客户机向DHCP服务器申请IP地址的服务器
+
+[r2]dhcp enable 	
+[r2]int g2/0/0				//连接客户机的接口	
+[r2-GigabitEthernet2/0/0]dhcp select relay 	//启用中继代理模式
+[r2-GigabitEthernet2/0/0]dhcp relay server-ip 192.168.2.1    //指定DHCP服务器地址
+
+
+	
+
+
+
+
+	
+	
+	
+
+
+
+
+
+
+
+
+

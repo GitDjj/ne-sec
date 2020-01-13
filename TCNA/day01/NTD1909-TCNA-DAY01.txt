@@ -1,0 +1,119 @@
+虚拟局域网
+
+1.虚拟局域网
+
+1)作用：分隔广播域
+2)好处：提高网络性能，提高安全性
+3)如何去做：创建vlan,把端口加入不同的vlan
+	单点管理vlan的机制   vtp域
+4)vlan封装协议
+	vlan封装协议 ieee802.1q，长度 12 bit, 取值 0-4096，可用 2-4094
+	
+	目的地址    源地址   valn标签 类型    数据     帧校验序列
+
+	cisco私有的vlan封装协议：isl
+
+5）vlan标签
+	-数据帧进入交换机：添加标签		根据进入端口的pvid
+	-数据帧从交换机端口发出(端口模式)：
+			--access(pc):	脱标签
+			--trunk(交换机):	带标签
+			--hybrid(pc,交换机)	手动设置
+
+6)在二层实现vlan间的访问：hybrid
+	pc(v10)-----(access)交换机: 脱自己标签
+	pc(v10)-----(hybrid)交换机: 脱自己标签
+			          脱别的vlan的标签
+
+2.vlan命令
+1)创建vlan
+	vlan batch 10 20 30
+2)把端口加入vlan
+	port link-type access
+	port default vlan 10
+	
+	port link-type trunk
+	port trunk pvid vlan 10
+
+	port link-type hybrid
+	port hybrid pvid vlan 10
+3)端口标签设置
+	port trunk allow-pass vlan all
+	
+	port hybrid tagged vlan 10 20 30 
+	port hybrid untagged vlan 10 20
+
+4)显示vlan
+	display vlan 
+	display port vlan
+-------------------------------------------------------------------------------------
+路由
+
+1.路由
+	数据包从一个网络到另外一个网络所走过的路径
+
+2.路由的设备
+	三层设备：路由器或三层交换机
+3.路由器的工作原理
+	路由器通过路由表转发数据包
+1)路由表
+	目标网段		下一跳地址(相邻路由器的接口IP)
+1              192.168.4.0/24	  192.168.2.2
+2              192.168.5.0/24	  192.168.3.2
+
+2)路由表的生成
+	默认路由器没有路由表
+	路由器学习网络中的所有网段和如何到达这个网段
+
+	网段的类型：
+		--直连网段:路由器端口所在的网段
+		--非直连网段：路由器端口不在的网段
+	路表信息的类型：
+		--直连网段：不需要创建路由信息，设置端口IP地址，启用端口
+			   自动生成直连路由
+		--非直连网段：
+			--手动设置：静态路由
+			--自己学习：配置动态路由协议
+				   rip,ospf,bgp
+
+4.路由命令
+静态路由是单向路由
+[r1]display ip routing-table 			//显示路由表
+[r1]ip route-static 192.168.3.0 24 192.168.2.2	//创建静态路由
+[r1]ip route-static 0.0.0.0 0.0.0.0 192.168.2.2	//创建默认路由
+
+
+Destination/Mask    Proto    Pre       Cost       NextHop         Interface
+  目标网段                   类型     优先级   开销值       下一跳	           本地出口
+
+192.168.1.0/24       Direct        0         0          192.168.1.1      g0/0/0
+	               直连
+192.168.3.0/24       Static       60        0          192.168.2.2      g0/0/1
+
+	
+
+
+
+	
+	
+	
+	
+
+
+	
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	

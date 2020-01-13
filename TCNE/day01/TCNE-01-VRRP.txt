@@ -1,0 +1,347 @@
+
+网络本质： 
+       互通
+	     -交换：相同网段主机之间的通信
+		    @交换机
+			@交换技术：
+			   *交换机原理（核心工作表：MAC地址表）
+			       1.形成MAC地址表
+				        &查看源MAC地址，将源MAC与数据帧的入
+						 接口，形成一个对应条目；
+						    MAC ---- Port
+				   2.查找MAC地址表
+				        &查看目标MAC地址，与MAC地址表中的
+						 条目进行比对：
+						   %如果有，则直接从对应的Port转发
+						   %没有，则直接进行广播/洪泛/泛洪
+						    flooding，
+							即将该数据帧从除入接口以外的
+							其他所有接口转发出去；
+				  注意：
+                      广播MAC地址：48bit 的 1 。
+                      通常情况下，病毒报文或者恶意报文
+                      的MAC地址，都是广播MAC地址；					  
+							
+							-为了能让交换机隔离广播域，
+							 所以，我们提出：VLAN
+
+							
+		 -路由：不同网段主机之间的通信
+		    @网关：接口
+		    @路由器
+			@路由器技术(核心工作表：路由表)
+			
+			   网段 ---- interface 
+			   
+			   类型：
+			       直连路由
+				   静态路由
+----------------------------------------------------------
+
+网络中的典型故障：
+        单点故障
+		   -解决方案： 
+		        @增加冗余设备或者冗余的线路
+        #交换网络：
+		   -增加冗余交换机
+		      &新问题：环路
+			  &新的解决方案：
+			        STP
+					RSTP
+					MSTP
+        #路由网络：
+		   -增加冗余路由器
+		      &新问题：
+			      @网关IP地址冲突
+				  @客户端频繁的更换网关IP
+			  &新的解决方案：
+			        VRRP 
+		   -增加冗余线路
+		      &新问题：
+			      @主链路和备份链路会出现“同时使用”；
+			  &新的解决方案：
+			        浮动路由
+					   具体配置方法：
+					      将主链路对应的路由条目
+						    与 
+						  备份线路对应的路由条目
+						    优先级设置为不同的值：
+							    主链路对应的优先级，数值小；
+								备份链路对应的优先级，数值大；
+
+
+-----------------------------------------------------------		
+	   
+IP地址结构： 
+    网络位+主机位/掩码	
+
+                11111111111110000000000
+   	特殊的地址： 
+        网络地址:主机位全位0
+        广播地址:主机位全位1		
+	   
+	   
+智能终端   ------- 网络  -------- 智能终端 
+  PC-1                               PC-2 
+
+
+数据转发方式：(基于目标地址) 
+   1.单播
+   2.组播
+   3.广播 
+
+-----------------------------------------------------------------
+-----------------------------------------------------------------
+
+VRRP: 
+   -概述： 
+       VRRP 公有标准
+	   位于 OSI 模型第三层
+	   协议号位 112 
+	   发送报文的方式，组播：224.0.0.18
+   -作用： 
+       在同一个网段的多个网关设备之间运行，
+       用于实现网关设备的备份和负载均衡；
+
+	   
+   -设备角色：
+       @主网关(master)：用于转发终端设备发送的数据报文；
+	   @备份网关(backup)：时刻监控着主网关的状态；
+	   @虚拟网关：直接配置在终端设备上；
+   -选举原则：
+       1.首先比较优先级，越大越好；默认是100；
+	   2.其次比较IP地址，越大越好；
+   
+   -VRRP 特性：
+      @ 链路跟踪
+	       该特性，通常是配置在主网关的“网关接口”下，
+		   用于监控 主网关设备，连接外网的接口的状态；
+		   如果该接口的状态，是 down，则降低一定数值的优先级，
+		   从而可以让主网关的优先级，比“备份网关的优先级”还小，
+		   如此一来，备份网关，就变成了主网关。
+		   
+		配置命令： 
+           SW1：[之前配置的VRRP优先级为 200]
+             interface  vlanif 2 
+                 vrrp vrid  2 track interface gi0/0/1 reduced 51
+                 quit
+
+            解释： 
+			   当 SW1 的 接口 gi0/0/1 的状态变成 down 之后，
+			   在 vlanif 2 接口上发送出去的 VRRP 报文的优先级
+			   降低成了 149 (200-51)，从而之前的 SW2 就变成了
+			   主网关，实现 PC1的数据包的继续转发。
+			   
+			   如果 SW1 的接口 gi0/0/1 状态变成了 up之后，
+			   该 vlanif 2 接口上发送的 VRRP 的优先级又变成了200，
+			   从而又称为了主网关，SW2变成备份网关；
+          				 
+   -特性：
+      @认证/加密	   
+	      目的是为了让 VRRP 的工作过程更加的安全。
+	  @认证原则：
+	      -加密类型和加密密码，都必须完全相同。
+	  @认证类型：
+	      -明文认证
+		  -密文认证
+	  @认证配置： 
+	      SW1/2：
+		    interface vlanif 2 
+			   vrrp vrid  2 authentication-mode  simple HCIE
+			   或者 
+			   vrrp vrid  2 authentication-mode  md5  HAHA
+		   
+---------------------------------------------------------------
+
+VRRP 常见的故障现象：
+     同时出现多个 master ； 
+       -常见原因： 
+	       @ 两个网关的接口IP地址 ping 不通；
+		   @ 两个网关的接口配置的 VRRP 的 vrid 不同 ； 
+		   @ 两个网关的接口配置的 VRRP 的 virtual-ip不同；
+	       @ 认证失败
+VRRP 的配置原则： 
+     永远确保 两个网关接口的 VRRP 配置命令完全相同
+	 (除了主网关的优先级)
+----------------------------------------------------------
+
+VLAN 的配置原则： 
+     所有交换机的 VLAN 信息，应该是完全相同；
+
+-----------------------------------------------------------
+STP 的配置原则： 
+     所有交换机的 STP  信息，应该是完全相同；
+	 (除了根交换机的优先级)
+
+=================================================================
+
+VRRP 负载均衡
+
+   - SW1 作为 VLAN 6 主网关，VLAN8 的备份网关； 
+   - SW2 作为 VLAN 8 主网关，VLAN6 的备份网关； 
+
+思路： 
+   1.配置终端
+   2.配置网络设备
+       @交换机 
+	      #初始化配置
+		  #创建 vlan
+		  #配置 SW-SW 之间的接口； 
+		  #配置 SW-非SW 之间的接口； 
+	   @路由器 
+	      #初始化配置 
+		  #配置接口IP地址
+   3.配置每个 VLAN 的网关，并启用 VRRP 
+   4.配置每个 网关上面的 默认路由；
+   5.配置 AR1 上面的返回路由，实现链路的备份（浮动路由）
+   6.验证与测试
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+配置命令： 
+   PC-1： 
+      192.168.6.1
+	  255.255.255.0
+	  192.168.6.254 -->虚拟网关IP
+   PC-2： 
+      192.168.8.1
+	  255.255.255.0
+	  192.168.8.254 -->虚拟网关IP	  
+   PC-3： 
+      1.1.1.1
+	  255.255.255.0
+	  1.1.1.254
+
+SW1:
+   undo terminal monitor
+   system-view
+   sysname SW1 
+   vlan batch 6 8 10 
+   
+   interface gi0/0/13               // 连接 SW3 的接口
+     port link-type trunk 
+	 port trunk allow-pass vlan all 
+	 quit 
+   interface gi0/0/24               // 连接 SW2 的接口 
+     port link-type trunk 
+	 port trunk allow-pass vlan all 
+	 quit 	 
+	 
+   interface gi0/0/1               // 连接 AR1 的接口 
+     port link-type access 
+	 port default vlan 10 
+	 quit 
+
+SW2:
+   undo terminal monitor
+   system-view
+   sysname SW2 
+   vlan batch 6 8 20 
+   
+   interface gi0/0/23               // 连接 SW3 的接口 
+     port link-type trunk 
+	 port trunk allow-pass vlan all 
+	 quit 
+   interface gi0/0/24               // 连接 SW1 的接口 
+     port link-type trunk 
+	 port trunk allow-pass vlan all 
+	 quit 
+	 
+   interface gi0/0/1               // 连接 AR1 的接口 
+     port link-type access 
+	 port default vlan 20 
+	 quit 
+
+SW3:
+   undo terminal monitor
+   system-view
+   sysname SW3 
+   vlan batch 6 8  
+   
+   interface gi0/0/13               // 连接 SW1 的接口 
+     port link-type trunk 
+	 port trunk allow-pass vlan all 
+	 quit 
+   interface gi0/0/23               // 连接 SW2 的接口 
+     port link-type trunk 
+	 port trunk allow-pass vlan all 
+	 quit 
+	 
+   interface gi0/0/1               // 连接 PC-1 的接口 
+     port link-type access 
+	 port default vlan 6 
+	 quit 	 
+	 
+   interface gi0/0/2               // 连接 PC-2 的接口 
+     port link-type access 
+	 port default vlan 8 
+	 quit 	 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~	 	 
+
+SW1:
+   interface vlanif 10                 // 用于 与 AR1互联； 
+     ip address  192.168.10.1  30
+     quit 
+   interface vlanif 6                 // vlan 6 的主网关 
+     ip address  192.168.6.1  24
+	 vrrp vrid 6 virtual-ip  192.168.6.254
+	 vrrp vrid 6 priority 200
+	 vrrp vrid 6 track interface gi0/0/1 reduced 100
+     quit	
+
+   ip route-static 0.0.0.0  0.0.0.0  192.168.10.2
+	 
+
+SW2:
+   interface vlanif 20                 // 用于 与 AR1互联；  
+     ip address  192.168.20.1  30
+     quit 
+   interface vlanif 6                 // vlan 6 的备份网关  
+     ip address  192.168.6.2  24
+	 vrrp vrid 6 virtual-ip  192.168.6.254
+	 vrrp vrid 6 priority 150
+     quit	 
+	 
+   ip route-static 0.0.0.0  0.0.0.0  192.168.20.2	 
+	 
+	 
+AR1：	 
+   undo terminal monitor
+   system-view
+   sysname AR1 
+   interface  gi0/0/1                 // 连接 SW1   
+     ip address  192.168.10.2  24
+     quit 
+   interface  gi0/0/2                 // 连接 SW2    
+     ip address  192.168.20.2  24
+     quit   	 
+   interface  gi0/0/0                 // 连接 PC-3    
+     ip address  1.1.1.254  24
+     quit 
+   ip route-static  192.168.6.0  24  192.168.10.1
+   ip route-static  192.168.6.0  24  192.168.20.1 preference 100
+   
+=============================================================
+
+针对 vlan 8 的 VRRP 和浮动路由的配置： 
+
+
+SW1:
+
+   interface vlanif 8                 // vlan 8 的备份网关   
+     ip address  192.168.8.1  24
+	 vrrp vrid 8 virtual-ip  192.168.8.254
+	 vrrp vrid 8 priority 150
+     quit		 
+
+SW2:
+   interface vlanif 8                 // vlan 8 的主网关  
+     ip address  192.168.8.2  24
+	 vrrp vrid 8 virtual-ip  192.168.8.254
+	 vrrp vrid 8 priority 200
+	 vrrp vrid 8 track interface gi0/0/1 reduced 100
+     quit	 
+	 
+AR1：	 
+   ip route-static  192.168.8.0  24  192.168.20.1
+   ip route-static  192.168.8.0  24  192.168.10.1 preference 100
+ 

@@ -1,0 +1,450 @@
+r1:
+u t m
+sys
+sys r1
+dhcp enable
+int g0/0/0.1
+dot1q termination vid 10
+ip addr 192.168.1.1 25
+arp broadcast enable
+dhcp select relay
+dhcp relay server-ip 192.168.7.10
+int g0/0/0.2
+dot1q termination vid 20
+ip addr 192.168.1.129 26
+arp broadcast enable
+dhcp select relay
+dhcp relay server-ip 192.168.7.10
+int g0/0/0.3
+dot1q termination vid 30
+ip addr 192.168.1.193 27
+arp broadcast enable
+dhcp select relay
+dhcp relay server-ip 192.168.7.10
+int g0/0/0.4
+dot1q termination vid 40
+ip addr 192.168.1.225 27
+arp broadcast enable
+dhcp select relay
+dhcp relay server-ip 192.168.7.10
+int g0/0/1
+ip addr 192.168.4.1 24
+ip route-static 192.168.5.0 24 192.168.4.3
+ip route-static 192.168.6.0 24 192.168.4.3
+ip route-static 192.168.7.0 24 192.168.4.3
+ip route-static 192.168.8.0 24 192.168.4.3
+
+sw1:
+u t m
+sys
+sys sw1
+vlan batch 10 20 30 40
+int e0/0/1
+port link-type access
+port default vlan 10
+stp disable
+int e0/0/2
+port link-type access
+port default vlan 20
+stp disable
+port-group 1
+group-member e0/0/3 e0/0/4
+port link-type trunk
+port trunk allow-pass vlan all
+quit
+stp region-configuration 
+region-name ntd1908		
+instance 1 vlan 10 20
+instance 2 vlan 30 40
+active region-configuration 
+stp instance 1 priority 4096
+display stp brief
+
+
+sw2:
+u t m
+sys
+sys sw2
+vlan batch 10 20 30 40
+int e0/0/1
+port link-type access
+port default vlan 30
+stp disable
+int e0/0/2
+port link-type access
+port default vlan 40
+stp disable
+port-group 1
+group-member e0/0/3 e0/0/4
+port link-type trunk
+port trunk allow-pass vlan all
+quit
+stp region-configuration 
+region-name ntd1908		
+instance 1 vlan 10 20
+instance 2 vlan 30 40
+active region-configuration 
+stp instance 2 priority 4096
+display stp brief
+
+
+sw3:
+u t m
+sys
+sys sw3
+vlan batch 10 20 30 40
+port-group 1
+group-member e0/0/1 to e0/0/3
+port link-type trunk
+port trunk allow-pass vlan all
+quit
+stp region-configuration 
+region-name ntd1908		
+instance 1 vlan 10 20
+instance 2 vlan 30 40
+active region-configuration
+display stp brief 
+
+
+sw10:
+u t m
+sys
+sys dhcp
+dhcp enable
+ip pool v10
+network 192.168.1.0 mask 25
+gateway-list 192.168.1.1
+ip pool v20
+network 192.168.1.128 mask 26
+gateway-list 192.168.1.129
+ip pool v30
+network 192.168.1.192 mask 27
+gateway-list 192.168.1.193
+ip pool v40
+network 192.168.1.224 mask 27
+gateway-list 192.168.1.225
+ip pool v50
+network 192.168.2.0 mask 26
+gateway-list 192.168.2.1
+ip pool v60
+network 192.168.2.64 mask 26
+gateway-list 192.168.2.65
+ip pool 70
+network 192.168.2.128 mask 26
+gateway-list 192.168.1.129
+ip pool v80
+network 192.168.2.192 mask 26
+gateway-list 192.168.2.193
+ip pool v90
+network 192.168.3.0 mask 26
+gateway-list 192.168.3.1
+ip pool v100
+network 192.168.3.64 mask 26
+gateway-list 192.168.3.65
+ip pool 110
+network 192.168.3.128 mask 26
+gateway-list 192.168.3.129
+ip pool v120
+network 192.168.3.192 mask 26
+gateway-list 192.168.3.193
+quit
+vlan 100
+int g0/0/2
+port link-type access
+port default vlan 100
+int vlanif 100
+ip addr 192.168.7.10 24
+dhcp select global
+quit
+ip route-static 192.168.1.0 24 192.168.7.4
+ip route-static 192.168.3.0 24 192.168.7.4
+ip route-static 192.168.4.0 24 192.168.7.4
+ip route-static 192.168.5.0 24 192.168.7.4
+ip route-static 192.168.6.0 24 192.168.7.4
+ip route-static 192.168.8.0 24 192.168.7.4
+ip route-static 192.168.1.0 24 192.168.7.4
+vlan batch 50 60 70 80
+int g0/0/1
+port link-type trunk
+port trunk allow-pass vlan all
+int vlanif 50
+ip addr 192.168.2.1 26
+dhcp select global
+int vlanif 60
+ip addr 192.168.2.65 26
+dhcp select global
+int vlanif 70
+ip addr 192.168.2.129 26
+dhcp select global
+int vlanif 80
+ip addr 192.168.2.193 26
+dhcp select global
+
+r4:
+u t m
+sys
+sys r4
+int g0/0/0
+ip addr 192.168.5.4 24
+int g0/0/1
+ip addr 192.168.6.4 24
+int g2/0/0
+ip addr 192.168.7.4 24
+quit
+ip route-static 192.168.1.0 24 192.168.5.3
+ip route-static 192.168.4.0 24 192.168.5.3
+ip route-static 192.168.8.0 24 192.168.6.5
+ip route-static 192.168.3.0 24 192.168.6.5
+
+r3:
+u t m
+sys
+sys r3
+int g0/0/0
+ip addr 192.168.4.3 24 
+int g0/0/1
+ip addr 192.168.5.3 24
+ip route-static 192.168.1.0 24 192.168.4.1
+ip route-static 192.168.6.0 24 192.168.5.4
+ip route-static 192.168.7.0 24 192.168.5.4
+ip route-static 192.168.8.0 24 192.168.5.4
+ip route-static 192.168.2.0 24 192.168.5.4
+ip route-static 192.168.3.0 24 192.168.5.4
+
+
+sw4:
+u t m
+sys
+sys sw4
+vlan batch 50 60 70 80
+int e0/0/1
+port link-type access
+port default vlan 50
+stp disable
+int e0/0/2
+port link-type access
+port default vlan 60
+stp disable
+quit
+port-group 1
+group-member e0/0/3 e0/0/4
+port link-type trunk
+port trunk allow-pass vlan all
+quit
+stp region-configuration 
+region-name ntd1909		
+instance 1 vlan 50 60
+instance 2 vlan 70 80
+active region-configuration 
+stp instance 1 priority 4096
+
+sw5:
+u t m
+sys
+sys sw5
+vlan batch 50 60 70 80
+int e0/0/1
+port link-type access
+port default vlan 70
+stp disable
+int e0/0/2
+port link-type access
+port default vlan 80
+stp disable
+quit
+port-group 1
+group-member e0/0/3 e0/0/4
+port link-type trunk
+port trunk allow-pass vlan all
+quit
+stp region-configuration 
+region-name ntd1909		
+instance 1 vlan 50 60
+instance 2 vlan 70 80
+active region-configuration 
+stp instance 2 priority 4096
+
+sw6:
+u t m
+sys
+sys sw6
+vlan batch 50 60 70 80
+port-group 1
+group-member e0/0/1 to e0/0/3
+port link-type trunk
+port trunk allow-pass vlan all
+
+r5:
+u t m
+sys
+sys r5
+int g0/0/0
+ip addr 192.168.8.5 24
+int g0/0/1
+ip addr 192.168.6.5 24
+quit
+ip route-static 192.168.3.0 24 192.168.8.2
+ip route-static 192.168.7.0 24 192.168.6.4
+ip route-static 192.168.4.0 24 192.168.6.4
+ip route-static 192.168.5.0 24 192.168.6.4
+ip route-static 192.168.1.0 24 192.168.6.4
+ip route-static 192.168.2.0 24 192.168.6.4
+
+r2:
+u t m
+sys
+sys r2
+dhcp enable
+int g0/0/1
+ip addr 192.168.8.2 24
+int g0/0/0.1 
+dot1q termination vid 90
+ip addr 192.168.3.1 26
+arp broadcast enable
+dhcp select relay
+dhcp relay server-ip 192.168.7.10
+int g0/0/0.2
+dot1q termination vid 100
+ip addr 192.168.3.65 26
+arp broadcast enable
+dhcp select relay
+dhcp relay server-ip 192.168.7.10
+int g0/0/0.3
+dot1q termination vid 110
+ip addr 192.168.3.129 26
+arp broadcast enable
+dhcp select relay
+dhcp relay server-ip 192.168.7.10
+int g0/0/0.4 
+dot1q termination vid 120
+ip addr 192.168.3.193 26
+arp broadcast enable
+dhcp select relay
+dhcp relay server-ip 192.168.7.10
+quit
+ip route-static 192.168.1.0 24 192.168.8.5
+ip route-static 192.168.2.0 24 192.168.8.5
+ip route-static 192.168.4.0 24 192.168.8.5
+ip route-static 192.168.5.0 24 192.168.8.5
+ip route-static 192.168.6.0 24 192.168.8.5
+ip route-static 192.168.7.0 24 192.168.8.5
+
+sw7:
+u t m
+sys
+sys sw7
+vlan batch 90 100 110 120
+int e0/0/1
+port link-type access
+port default vlan 90
+stp disable
+int e0/0/2
+port link-type access
+port default vlan 100
+stp disable
+quit
+port-group 1
+group-member e0/0/3 e0/0/4
+port link-type trunk 
+port trunk allow-pass vlan all
+quit
+stp region-configuration 
+region-name ntd1910		
+instance 1 vlan 90 100
+instance 2 vlan 110 120
+active region-configuration 
+stp instance 1 priority 4096
+
+sw8:
+u t m
+sys
+sys sw8
+vlan batch 90 100 110 120
+int e0/0/1
+port link-type access
+port default vlan 110
+stp disable
+int e0/0/2
+port link-type access
+port default vlan 120
+stp disable
+quit
+port-group 1
+group-member e0/0/3 e0/0/4
+port link-type trunk 
+port trunk allow-pass vlan all
+quit
+stp region-configuration 
+region-name ntd1910		
+instance 1 vlan 90 100
+instance 2 vlan 110 120
+active region-configuration 
+stp instance 2 priority 4096
+
+sw9:
+u t m
+sys
+sys sw9
+vlan batch 90 100 110 120
+port-group 1
+group-member e0/0/1 to e0/0/3
+port link-type trunk
+port trunk allow-pass vlan all
+quit
+stp region-configuration 
+region-name ntd1910		
+instance 1 vlan 90 100
+instance 2 vlan 110 120
+active region-configuration 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

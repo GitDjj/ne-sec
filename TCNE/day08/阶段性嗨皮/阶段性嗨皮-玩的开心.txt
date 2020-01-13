@@ -1,0 +1,216 @@
+
+SW1:
+  undo terminal monitor
+  system-view
+  sysname SW1
+  vlan batch 10 20 88
+  
+  port-group group-member gi0/0/1 gi0/0/12  gi0/0/13
+    port link trunk 
+	port trunk allow-pass vlan all 
+	quit 
+	
+  interface gi0/0/8 
+    port link access 
+	port default vlan 88
+	quit 
+	
+   stp region-configuration
+      region-name HCIE
+	  instance 1 vlan 10 
+	  instance 2 vlan 20 
+	  instance 8 vlan 88
+	  active region-configuration
+	  quit 
+   stp instance 1 priority 0
+   stp instance 8 priority 0 
+
+
+
+
+SW2:
+  undo terminal monitor
+  system-view
+  sysname SW2
+  vlan batch 10 20 88
+  
+  port-group group-member gi0/0/1 gi0/0/12  gi0/0/23
+    port link trunk 
+	port trunk allow-pass vlan all 
+	quit 
+	
+	
+   stp region-configuration
+      region-name HCIE
+	  instance 1 vlan 10 
+	  instance 2 vlan 20 
+	  instance 8 vlan 88
+	  active region-configuration
+	  quit 
+   stp instance 2 priority 0
+
+
+
+
+SW3:
+  undo terminal monitor
+  system-view
+  sysname SW3
+  vlan batch 10 20 88
+  
+  port-group group-member gi0/0/13  gi0/0/23
+    port link trunk 
+	port trunk allow-pass vlan all 
+	quit 
+
+  interface gi0/0/1
+    port link access 
+	port default vlan 10 
+	quit
+  interface gi0/0/2
+    port link access 
+	port default vlan 20 
+	quit 	
+	
+	
+   stp region-configuration
+      region-name HCIE
+	  instance 1 vlan 10 
+	  instance 2 vlan 20 
+	  instance 8 vlan 88
+	  active region-configuration
+	  quit 
+
+
+R3: 
+  undo terminal monitor
+  system-view 
+  sysname R3 
+  interface gi0/0/0.10
+    dot1q termination vid 10
+	arp broadcast enable
+	ip address 192.168.10.251 24
+	vrrp vrid 10 virtual-ip 192.168.10.254
+	vrrp vrid 10 priority 200
+	quit 
+	
+  interface gi0/0/0.20
+    dot1q termination vid 20
+	arp broadcast enable
+	ip address 192.168.20.251 24
+	vrrp vrid 20 virtual-ip 192.168.20.254
+	quit 
+
+  interface gi0/0/0.88
+    dot1q termination vid 88
+	arp broadcast enable
+	ip address 192.168.88.251 24
+	vrrp vrid 88 virtual-ip 192.168.88.254
+	vrrp vrid 88 priority 200
+	quit
+  
+   interface gi0/0/1 
+     ip address  192.168.13.3 24  
+     quit 
+   interface gi0/0/2 
+     ip address  192.168.34.3 24 
+     quit 	 
+
+  ospf 1  router-id 3.3.3.3
+    area 0 
+	  network 192.168.13.0 0.0.0.255
+	  network 192.168.34.0 0.0.0.255
+	  network 192.168.10.0 0.0.0.255
+	  network 192.168.20.0 0.0.0.255
+	  quit 
+	area 88
+	  network 192.168.88.0 0.0.0.255
+	  stub
+	  quit 
+	  
+    
+
+R4: 
+  undo terminal monitor
+  system-view 
+  sysname R4
+  interface gi0/0/0.10
+    dot1q termination vid 10
+	arp broadcast enable
+	ip address 192.168.10.252 24
+	vrrp vrid 10 virtual-ip 192.168.10.254
+	ospf cost 99
+	quit 
+	
+  interface gi0/0/0.20
+    dot1q termination vid 20
+	arp broadcast enable
+	ip address 192.168.20.252 24
+	vrrp vrid 20 virtual-ip 192.168.20.254
+	vrrp vrid 20 priority 200
+	ospf cost 99
+	quit 
+
+  interface gi0/0/0.88
+    dot1q termination vid 88
+	arp broadcast enable
+	ip address 192.168.88.252 24
+	vrrp vrid 88 virtual-ip 192.168.88.254
+	ospf cost 99
+	quit
+  
+   interface gi0/0/1 
+     ip address  192.168.34.4 24  
+     quit 
+   interface gi0/0/2 
+     ip address  192.168.14.4 24 
+	 ospf cost 99	 
+     quit 	 
+
+  ospf 1  router-id 4.4.4.4
+    area 0 
+	  network 192.168.13.0 0.0.0.255
+	  network 192.168.34.0 0.0.0.255
+	  network 192.168.10.0 0.0.0.255
+	  network 192.168.20.0 0.0.0.255
+	  quit 
+      quit 
+
+
+
+R1: 
+  undo terminal monitor
+  system-view 
+  sysname R1
+  interface gi0/0/1
+    ip address 192.168.13.1 24
+	quit 
+	
+  interface gi0/0/2
+    ip address 192.168.14.1 24
+	ospf cost 100
+	quit 
+
+  interface gi0/0/0
+    ip address 100.1.1.1 28
+	nat outbound 2000
+	nat server protocol tcp  global 100.1.1.11 80 inside 192.168.88.1 80
+	nat server protocol icmp global 100.1.1.11    inside 192.168.88.1
+	quit
+  
+  acl 2000
+     rule 10 permit source 192.168.10.0 0.0.0.255
+     rule 20 permit source 192.168.88.0 0.0.0.255
+     rule 30 permit source 192.168.20.2 0.0.0.0 	 
+     quit 
+
+  ip route-static 0.0.0.0 0.0.0.0  100.1.1.2
+
+  ospf 1  router-id 1.1.1.1
+    default-route-advertise
+    area 0 
+	  network 192.168.13.0 0.0.0.255
+	  network 192.168.14.0 0.0.0.255
+	  quit 
+      quit 
+

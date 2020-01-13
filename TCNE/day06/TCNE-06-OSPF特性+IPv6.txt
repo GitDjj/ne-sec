@@ -1,0 +1,185 @@
+
+OSPF 路由类型：  
+   1.内部路由
+       @network
+	     -1类LSA(区域内)
+		 -3类LSA(区域间)
+   2.外部路由
+       @import-route
+         -5类LSA(普通区域的)
+		 -7类LSA(特殊区域的)
+		 
+OSPF 区域类型： 
+   1.骨干区域
+   2.非骨干区域
+       @普通区域 
+	   @特殊区域 [不要4/5类LSA的区域]
+	      *stub
+		  *totally stub 
+		  *nssa
+		  *totally nssa 
+
+课程内容： 
+  1.5类LSA - type 1 & type 2
+     -type1&2的区别，仅仅存在于“路由计算时，cost的计算方法不同”；
+	   @type 2 的 5类LSA，计算路由的cost 值时，LSA中的metric是多少
+	    那路由表中的 外部路由的 cost 就是多少；
+	   @type 1 的 5类LSA，计算路由的cost 值时，LSA中的metric，还需要
+	    加上，5类LSA在传输过程中所经过的每个入接口的cost的累加和；
+		最终加起来所得到的数值，才是 type 1 的 外部路由在路由表
+		中的 cost ；
+		
+    -通常使用方法：
+	    1.如果公司有多个出口设备，仅仅是想在多个出口设备之间实现
+		  备份，一般都将外部路由的 type 设置为 2 ； 
+		  [主出口产生的5类LSA的 metric 要小与备份出口的 metric]
+		2.如果公司有多个出口设备，想在多个设备之间实现备份和负载
+		  均衡，可以将外部路由的 type  设置为 1 ；
+	    
+    -注意： 
+	    1.默认情况下，5类LSA的 type 是 2 ，默认的 metric 是 1 ；
+	    2.5类LSA中， type 1 的优先级，永远高于类型2；
+  
+  
+  
+  2.OSPF 默认路由
+     -产生方法： 
+	    @有条件的产生
+		   1.自己本身路由表中得有1个默认路由 
+		        0.0.0.0/0   via  x.x.x.x 
+		     举例：
+			   ip route-static 0.0.0.0  0.0.0.0 192.168.69.9
+		   2.在 OSPF 进程下配置以下命令： 
+		        ospf 1 
+				  default-route-advertise 
+		@无条件的产生
+		   即，不管本地路由表中是否存在默认路由，都会产生1个
+		       5类LSA表示的默认路由。
+			   命令如下： 
+			    ospf 1 
+				  default-route-advertise always 
+     -表示方法： 
+	    @5类LSA 
+		@type:2
+		@metric/cost:1
+-------------------------------------------------------------
+小案例：
+    R1和 R6都连接着运营商，都产生默认路由，  
+    要求：
+       R6是公司的主出口设备；
+       R1是公司的备份出口设备；
+    解法： 
+       R6： 
+        ip route-static 0.0.0.0  0   192.168.69.9
+        ospf 1 
+          default-route-advertise  type  1 
+          quit 		  
+       R1： 
+        ip route-static 0.0.0.0  0   192.168.11.11  preference 151
+        ospf 1 
+          default-route-advertise  
+          quit 		
+-------------------------------------------------------------		  
+  3.OSPF 汇总
+      -作用： 
+	      1.减小路由条目的数量，节约系统资源；
+		  2.增强网络的稳定性；
+	  -类型：
+	      1.3类LSA汇总
+		  2.5/7类LSA汇总
+	  -配置：
+	     @3类LSA汇总 
+		    在产生3类LSA的 ABR 上配置
+			命令如下： 
+			   ospf 1 
+			     area  {id}     #被汇总的路由原本所属于的区域
+				   abr-summary  {汇总路由}  {网络掩码}
+	     @5/7类LSA汇总 
+		    在产生5/7类LSA 的 ASBR 上配置
+			命令如下： 
+			   ospf 1 
+				   asbr-summary  {汇总路由}  {网络掩码}
+				   
+  4.OSPF 虚链路
+      -作用： 
+	     1.将非骨干区域连接到骨干区域上； 
+		 2.将被分割的骨干区域，重新连接起来；
+	  -配置： 
+	     ospf 1 
+		   area  {id}    #虚链路所穿越的区域；
+		     vlink-peer  {对端设备的router-id} 
+      -特点：
+	     1.虚链路永远属于区域 0 
+		 2.虚链路不能穿越骨干区域和特殊区域；
+  
+      -验证： 
+	      display ospf vlink
+  
+  5.IPv6 & OSPFv3
+       -特点： 
+	      1.长度为128bit，地址空间非常大；
+		  2.表示方法：冒号分16进制，分8段组成，每段4个16进制；
+	   -简写规则： 
+	      1.每段中，左边的0，可以省略不写； 
+		  2.每段中，如果全0，可以简写为1个0；
+		  3.多个连续的段，都为0，直接用“::”表示；
+		注意：  
+		   每个简写的IPv6地址中，最多只能出现一个“::”；
+		 
+       -配置IPv6地址： 
+	       1.系统模式下，启用 IPv6 功能； 
+		   2.接口模式下，启用 IPv6 功能； 
+		   3.接口下，配置 IPv6 地址； 
+		   4.验证与测试： 
+		       display  ipv6  interface  brief 
+			   ping ipv6   xxxxxxxxxxx
+			   
+	   -配置 OSPFv3 思路： 
+	       1.启用 OSPFv3 协议，进程号默认为1 [与OSPFv2相同]
+		   2.必须手动指定 router-id ； [格式与OSPFv2相同]
+		   3.接口下启用 OSPFv3 功能，并指定区域号；
+		   4.验证
+
+        -举例： 
+		     R1： 
+			   ospfv3  1  
+			      router-id  1.1.1.1 
+				  quit 
+			   interface  gi0/0/0 
+			      ospfv3  1  area  1 
+				  quit 
+			  display  ospfv3  peer  -> 查看 OSPFv3 邻居； 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

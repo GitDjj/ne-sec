@@ -1,0 +1,464 @@
+
+《简单的不像话》解法 
+
+1.配置终端设备
+     @配置PC： 
+	    -配置为DHCP客户端
+	 @配置Server
+        -配置 Web-server
+		   *配置IP地址、网关
+		   *配置 web 服务
+		-配置 DHCP-server 
+		   *配置接口IP地址
+		       interface gi0/0/0 
+			      ip address  192.168.66.1 24
+		   *配置默认路由
+		       ip route-static 0.0.0.0 0  192.168.66.254
+		   *配置 DHCP 服务
+		       dhcp enable 
+			   interface  gi0/0/0
+			     dhcp select  gloabl 
+				 quit 
+			ip pool VLAN10
+			network 192.168.10.0  mask 255.255.255.0 
+			excluded-ip-address 192.168.10.251  
+			excluded-ip-address 192.168.10.252
+			gateway-list 192.168.10.254
+			quit 
+ 
+			ip pool VLAN20
+			network 192.168.20.0  mask 255.255.255.0 
+			excluded-ip-address 192.168.20.251  
+			excluded-ip-address 192.168.20.252
+			gateway-list 192.168.20.254
+			quit 
+
+			ip pool VLAN30
+			network 192.168.30.0  mask 255.255.255.0 
+			excluded-ip-address 192.168.30.251  
+			excluded-ip-address 192.168.30.252
+			gateway-list 192.168.30.254
+			quit 
+			
+			ip pool VLAN40
+			network 192.168.40.0  mask 255.255.255.0 
+			excluded-ip-address 192.168.40.251  
+			excluded-ip-address 192.168.40.252
+			gateway-list 192.168.40.254
+			quit 			
+			
+2.配置网络设备
+    @配置交换机
+        -创建vlan
+        -创建 trunk (sw之间的链路)
+        -创建 access(sw与终端之间)
+	    -命令： 
+		   SW1/2/3/4/5/6/7/8：
+		     vlan batch 10 20 30 40 66 88 
+		   SW1:
+		     port-group group-member eth0/0/15 eth0/0/16 
+			   port link-type trunk 
+			   port trunk allow-pass vlan all 
+			   quit 
+		   SW2:
+		     port-group group-member eth0/0/5 eth0/0/6 
+			   port link-type trunk 
+			   port trunk allow-pass vlan all 
+			   quit 
+		   SW3:
+		     port-group group-member eth0/0/13 eth0/0/14  
+			   port link-type trunk 
+			   port trunk allow-pass vlan all 
+			   quit 
+		   SW4:
+		     port-group group-member eth0/0/17 eth0/0/18 
+			   port link-type trunk 
+			   port trunk allow-pass vlan all 
+			   quit 
+		   SW5:
+		     port-group group-member eth0/0/1 eth0/0/2 eth0/0/5 eth0/0/13 eth0/0/15 eth0/0/17 eth0/0/24
+			   port link-type trunk 
+			   port trunk allow-pass vlan all 
+			   quit 
+		   SW6:
+		     port-group group-member eth0/0/3 eth0/0/4 eth0/0/6 eth0/0/14 eth0/0/16 eth0/0/18 eth0/0/24  
+			   port link-type trunk 
+			   port trunk allow-pass vlan all 
+			   quit 
+		   SW7:
+		     port-group group-member eth0/0/1 eth0/0/3 eth0/0/24
+			   port link-type trunk 
+			   port trunk allow-pass vlan all 
+			   quit 
+		   SW8:
+		     port-group group-member eth0/0/2 eth0/0/4 eth0/0/24 
+			   port link-type trunk 
+			   port trunk allow-pass vlan all 
+			   quit 			   
+
+    @配置MSTP
+      SW1/2/3/4/5/6/7/8：
+
+		stp mode mstp 
+		stp region-configuration
+			region-name HCIE
+			instance 10 vlan 10 
+			instance 20 vlan 20 
+			instance 30 vlan 30 
+			instance 40 vlan 40 
+			instance 6 vlan 66
+			instance 8 vlan 88 
+			active region-configuration
+			quit 
+ 
+	  SW5:{vlan10/20的根交换机，vlan30/40的辅助根交换机}
+		stp  instance 10 root primary 
+		stp  instance 20 root primary
+		stp  instance 30 root secondary 
+		stp  instance 40 root secondary
+
+      SW6:{vlan30/40的根交换机，vlan10/20的辅助根交换机}
+		stp  instance 30 root primary 
+		stp  instance 40 root primary
+		stp  instance 10 root secondary 
+		stp  instance 20 root secondary
+     	  
+			
+3.配置每个vlan的网关以及 VRRP 		
+		SW5:{vlan10/20的主网关，vlan30/40的备份网关}
+		interface vlanif 10
+		 ip address 192.168.10.251 24
+		 vrrp vrid 10 virtual-ip 192.168.10.254
+		 vrrp vrid 10 priority 200
+		 quit 
+		interface vlanif 20
+		 ip address 192.168.20.251 24
+		 vrrp vrid 20 virtual-ip 192.168.20.254
+		 vrrp vrid 20 priority 200
+		 quit  
+		interface vlanif 30
+		 ip address 192.168.30.251 24
+		 vrrp vrid 30 virtual-ip 192.168.30.254
+		 quit 
+		interface vlanif 40
+		 ip address 192.168.40.251 24
+		 vrrp vrid 40 virtual-ip 192.168.40.254
+		 quit 
+		interface vlanif 88
+		 ip address 192.168.88.254 24
+		 quit 
+
+
+		SW6:{vlan30/40的主网关，vlan10/20的备份网关}
+		interface vlanif 10
+		 ip address 192.168.10.252 24
+		 vrrp vrid 10 virtual-ip 192.168.10.254
+		 quit 
+		interface vlanif 20
+		 ip address 192.168.20.252 24
+		 vrrp vrid 20 virtual-ip 192.168.20.254
+		 quit  
+		interface vlanif 30
+		 ip address 192.168.30.252 24
+		 vrrp vrid 30 virtual-ip 192.168.30.254
+		 vrrp vrid 30 priority 200
+		 quit 
+		interface vlanif 40
+		 ip address 192.168.40.252 24
+		 vrrp vrid 40 virtual-ip 192.168.40.254
+		 vrrp vrid 40 priority 200
+		 quit 
+		interface vlanif 66
+		 ip address 192.168.66.254 24
+		 quit			
+
+4.配置每个vlan的网关为 DHCP 中继
+		SW5/SW6:
+			dhcp enable 
+			interface vlanif 10 
+			 dhcp select relay 
+			 dhcp relay server-ip 192.168.66.1
+			 quit 
+			interface vlanif 20 
+			 dhcp select relay 
+			 dhcp relay server-ip 192.168.66.1
+			 quit 
+			interface vlanif 30 
+			 dhcp select relay 
+			 dhcp relay server-ip 192.168.66.1
+			 quit 
+			interface vlanif 40 
+			 dhcp select relay 
+			 dhcp relay server-ip 192.168.66.1
+			 quit 
+ 
+5.配置 SW5/6 与 AR1/2 之间的 OSPF 协议，宣告进区域0；
+	    -需要创建vlan15/25，分别连接SW5与AR1/AR2；
+		   vlan15 - 192.168.15.0/24
+		   vlan25 - 192.168.25.0/24
+		-需要创建vlan16/26，分别连接SW6与AR1/AR2；
+		   vlan16 - 192.168.16.0/24
+		   vlan26 - 192.168.26.0/24
+        -所有交换机都创建vlan15/25/16/26;
+		   SW1/2/3/4/5/6/7/8：
+		      vlan  batch  15 16 25 26 
+		-SW5配置与AR1/AR2的互联 IP 接口，并启用 OSPF  
+		   interface vlanif 15 
+		     ip address 192.168.15.5 24
+			 quit 
+		   interface vlanif 25 
+		     ip address 192.168.25.5 24
+			 quit 
+		   ospf 1 router-id  5.5.5.5
+              area 0 
+               network  192.168.15.0 0.0.0.255
+               network  192.168.25.0 0.0.0.255
+               quit 
+               quit 
+        -AR1配置与 SW7 的互联接口，并启用 OSPF 
+            interface gi0/0/0 
+               ip address 192.168.15.1 24
+               quit 
+			ospf 1 router-id 1.1.1.1
+               area 0 
+                network 192.168.15.0 0.0.0.255
+                quit 
+				
+        -AR2配置与 SW7 的互联接口，并启用 OSPF 
+            interface gi0/0/0 
+               ip address 192.168.25.2 24
+               quit 
+			ospf 1 router-id 2.2.2.2
+               area 0 
+                network 192.168.25.0 0.0.0.255
+                quit 
+
+		-SW6配置与AR1/AR2的互联 IP 接口，并启用 OSPF  
+		   interface vlanif 16 
+		     ip address 192.168.16.6 24
+			 quit 
+		   interface vlanif 26 
+		     ip address 192.168.26.6 24
+			 quit 
+		   ospf 1 router-id 6.6.6.6
+              area 0 
+               network  192.168.16.0 0.0.0.255
+               network  192.168.26.0 0.0.0.255
+               quit 
+               quit 
+        -AR1配置与 SW8 的互联接口，并启用 OSPF 
+            interface gi0/0/1 
+               ip address 192.168.16.1 24
+               quit 
+			ospf 1
+               area 0 
+                network 192.168.16.0 0.0.0.255
+                quit 
+				
+        -AR2配置与 SW8 的互联接口，并启用 OSPF 
+            interface gi0/0/1 
+               ip address 192.168.26.2 24
+               quit 
+			ospf 1 
+               area 0 
+                network 192.168.26.0 0.0.0.255
+                quit 
+
+        -配置SW7与AR1/AR2的互联接口的类型
+		    interface gi0/0/2 {SW7连接AR1}
+			   port link-type access 
+			   port default vlan 15
+			   quit 
+		    interface gi0/0/4 {SW7连接AR2} 
+			   port link-type access 
+			   port default vlan 25
+			   quit 			   
+        -配置SW8与AR1/AR2的互联接口的类型
+		    interface gi0/0/3 {SW8连接AR1}
+			   port link-type access 
+			   port default vlan 16
+			   quit 
+		    interface gi0/0/5 {SW8连接AR2} 
+			   port link-type access 
+			   port default vlan 26
+			   quit 
+6.配置 AR1 的静态默认路由，配置 OSPF产生默认路由{网络主出口}
+	    AR1; 
+		  interface gi0/0/2 {连接ISP}
+		    ip address 100.1.1.1 24
+			quit 
+		  ip route-static 0.0.0.0  0   100.1.1.2
+		  
+		  ospf 1 
+		     default-route-advertise
+
+7.配置 AR2 的静态默认路由，配置 OSPF产生默认路由,
+	    AR2; 
+		  interface gi0/0/2 {连接ISP}
+		    ip address 200.1.1.1 24
+			quit 
+		  ip route-static 0.0.0.0  0   200.1.1.2
+		  
+		  ospf 1 
+		     default-route-advertise cost 20 
+			 // 修改 AR2 产生的 OSPF 默认路由的 cost 
+			    为20，默认是1.目的是为了让 AR2 成为
+				备份的出口设备；
+
+8.配置 SW5/SW6 宣告 vlan10/20/30/40/66/88 进入 OSPF; 
+	 并配置 vlan66/88所在的区域为 完全 stub 区域；
+        SW5：
+		  ospf 1 
+		    area 10 
+			  network 192.168.10.0  0.0.0.255
+			  quit 
+		    area 20 
+			  network 192.168.20.0  0.0.0.255
+			  quit 			  
+		    area 30 
+			  network 192.168.30.0  0.0.0.255
+			  quit 
+		    area 40 
+			  network 192.168.40.0  0.0.0.255
+			  quit 
+		    area 88 
+			  network 192.168.88.0  0.0.0.255
+			  stub no-summary
+			  quit 
+        SW6：
+		  ospf 1 
+		    area 10 
+			  network 192.168.10.0  0.0.0.255
+			  quit 
+		    area 20 
+			  network 192.168.20.0  0.0.0.255
+			  quit 			  
+		    area 30 
+			  network 192.168.30.0  0.0.0.255
+			  quit 
+		    area 40 
+			  network 192.168.40.0  0.0.0.255
+			  quit 
+		    area 66 
+			  network 192.168.66.0  0.0.0.255
+			  stub no-summary 
+			  quit 
+
+9.配置 AR1/AR2 ，实现 PNAT
+  
+     acl 2000
+	   rule 10 deny  source 192.168.40.0  0.0.0.255
+	   rule 10 permit source any 
+	 interface  gi0/0/2 --->连接 ISP 的接口 
+	    nat outbound  2000 
+
+10.配置运营商网络： 
+     ISP: 
+	   interface gi0/0/0         --->连接 AR1 ； 
+	     ip address 100.1.1.2 24
+		 quit 
+	   interface gi0/0/1         --->连接 AR2 ； 
+	     ip address 200.1.1.2 24 
+		 quit 
+		 
+	   interface gi0/0/2         --->连接 SW9 ； 
+	     ip address 210.1.1.254 24 
+		 quit       
+     SW9: 
+	    interface vlanif 1 
+		  ip address  210.1.1.9  24 
+		  quit 
+		ip route-static 0.0.0.0  0.0.0.0  210.1.1.254 
+
+     PC-9: 
+	    ip:      210.1.1.1
+		mask:    255.255.255.0
+		gateway: 210.1.1.254
+
+     Client-1: 
+	    ip:      210.1.1.2
+		mask:    255.255.255.0
+		gateway: 210.1.1.254
+
+11.AR1/AR2 配置 NAT server ，实现外网访问内网； 
+
+    AR1/2： 
+	  interface gi0/0/2 
+	    nat server protocol tcp gloable 100.1.1.10    80 
+		                        inside  192.168.88.8  80 
+								
+	    nat server protocol tcp gloable 100.1.1.10    123 
+		                        inside  192.168.199.1 23  
+								
+	    nat server protocol tcp gloable 100.1.1.10    223 
+		                        inside  192.168.199.2 23 
+
+	    nat server protocol tcp gloable 100.1.1.10    x23 
+		                        inside  192.168.199.x 23 
+
+12.配置内网每个交换机的管理 IP地址： 
+     @每个交换机创建 vlan 199 
+	   SW1/2/3/4/5/6/7/8：  
+	     vlan 199 
+     @每个交换机配置 管理 IP地址
+	     interface vlanif 199
+		   ip address  192.168.199.x  24 {x为交换机号码}
+     @每个交换机配置 网关IP地址； 
+	    SW1/2/3/4/7/8：
+         ip route-static 0.0.0.0  0.0.0.0 192.168.199.254
+
+     @配置 VLAN 199 的虚拟网关IP地址；
+	 
+	     SW5:
+		    interface vlanif 199
+			  vrrp vrid 199 virtual-ip  192.168.199.254
+			  vrrp vrid 199 priority 200
+
+	     SW6:
+		    interface vlanif 199
+			  vrrp vrid 199 virtual-ip  192.168.199.254
+			  
+     @配置 SW5/6 将 vlan 199 的地址宣告进入到 OSPF 
+	      SW5/6: 
+		     ospf 1 
+			   area  199 
+			      network  192.168.199.0  0.0.0.255
+				  quit 
+
+13.修改 AR1/2 连接内网的接口的 ospf cost，实现外网访问内网
+   时候，来回路径一致； 
+     AR1/2: 
+	    interface  gi0/0/1 
+		   ospf  cost  100
+   
+   
+14.修改 PC 的IP地址为静态的IP地址，并配置每个 SW 的 远程访问
+
+   PC-2： 
+	    ip:      192.168.20.1
+		mask:    255.255.255.0
+		gateway: 192.168.20.254       
+   
+   SW1/2/3/4/5/6/7/8：
+      acl  2000
+	    rule 10 permit source  192.168.20.1  0.0.0.0
+		rule 20 permti source  210.1.1.0  0.0.0.255
+		quit 
+	
+      user-interface vty  0 4 
+        authentication-mode  password 
+		set authentication password cipher HCIE
+		acl inbound 2000 
+                                      		
+   
+   
+   
+   
+   
+   
+   
+   
+
+
+
+	

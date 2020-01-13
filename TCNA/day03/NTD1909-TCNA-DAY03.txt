@@ -1,0 +1,169 @@
+回顾：
+
+vlan间的通信
+
+交换机组网----所有节点在一个广播域----网络性能差，安全性差
+----分隔广播域(vlan)
+
+不同的vlan的通信
+	----二层：使用hybrid模式
+	----三层：
+	           --路由器：
+		     ---多臂路由，多个接口，每个接口对应一个vlan
+		     ---单臂路由，一个接口，设置多个子接口。
+			每个子接口关联相应的vlan
+				开启arp广播
+	         --三层交换机：
+		    ----路由虚接口：vlanif 10
+		   -----物理接口设置IP:把端口加入vlan,为vlan设置IP
+				no switchport 
+--------------------------------------------------------------------------------------------
+1.生成树的原理
+1）交换机网络的问题
+	链路备份：交换机之间要成环状互相连接
+	广播风暴：交换机会广播所有未知的数据帧
+		
+2）既要有链路备份又要避免广播风暴
+	物理有环，逻辑无环(禁用某个端口)
+
+	被禁用端口的链路，成为备份链路，可以随时启用。
+
+3）stp技术：生成树协议
+	禁用端口，避免广播风暴
+	随时启用被禁用端口，做链路备份
+
+2.生成树选举的过程
+1）选择根网桥
+2）选择根端口(每个非根网桥上选一个)
+3）选择指定端口(每根网线上选一个)
+
+没有被选中的端口，将被禁用。
+	
+
+1）选择根网桥：网桥ID小
+网桥ID=网桥优先级+网桥MAC地址
+网桥优先级:
+	范围 0-65535
+	默认值 32768
+	步长    4096
+
+2)选择根端口(每个非根网桥上选一个)
+-从端口到达根网桥的路径成本最低
+	路径成本：
+		100M	200000
+		1000M	20000
+-此端口直连网桥ID最小
+-端口标识最小
+	端口标识=端口优先级+端口ID
+
+	端口优先级： 0-240
+		默认值：128
+		步长：16
+
+3)选择指定端口(每根网线上选一个)
+##根网桥上的所有端口都是指定端口
+每根网线有只有一个指定端口
+
+--此端口所在的交换机到达根网桥的成本最低
+--此端口所在交换机的网桥ID最小
+--端口标识最小
+
+display stp brief 		//显示生成树信息
+Port                        	     Role(角色)  	STP State(端口状态)     
+Ethernet0/0/1               ROOT(根端口)  	FORWARDING(转发)      
+Ethernet0/0/2               ALTE (阻塞端口) 	DISCARDING(丢弃)    
+Ethernet0/0/3               DESI(指定端口)  	FORWARDING(转发) 
+
+3.桥协议数据单元
+BPDU:	配置BPDU
+	拓扑变更BPDU
+
+4.生成树端口的五种状态
+禁用	disabled		端口禁用
+阻塞	blocking		只能接收BPDU
+侦听	listening		可以接收和发送BPDU
+学习	learning		学习MAC地址表
+转发	forwarding	转发数据帧 
+
+5.生成树计时器
+
+hello时间：2秒	交换机发送BPDU的间隔
+转发延迟：侦听=》学习  或 学习=》转发      15秒
+最大老化时间：学习到的BPDU在交换机上的生存时间  20秒
+
+生成树端口的收敛时间：  30-50秒
+
+6.生成树基本命令
+[sw1]stp enable | disable 		      //启用或禁用生成树协议 
+[sw1]stp mode	mstp	多生成树
+		stp	普通生成树
+		rstp	快速生成树
+[sw2]stp priority [0-61440]		//设置网桥优先级
+[sw2]stp root primary		//设置主根网桥  0
+[sw2]stp priority 0
+[sw2]stp root secondary		//设置次根网桥 4096
+[sw2]stp priority 4096
+[sw2-Ethernet0/0/1]stp cost 20000		//设置端口cost值
+[sw4-Ethernet0/0/4]stp disable 		//禁用端口的生成树协议
+
+
+7.多生成树
+	逻辑上形成多个无环拓扑(多条路)
+
+	第一条路:
+		哪个vlan走这条路，这条路的根网桥
+	第二条路:
+		哪个vlan走这条路，这条路的根网桥
+
+	创建路，指定根网桥，指定vlan
+
+1)交换机基础配置：sw1,sw2,sw3
+[sw1]vlan batch 10 20
+[sw1]int e0/0/1
+[sw1-Ethernet0/0/1]port link-type access
+[sw1-Ethernet0/0/1]port default vlan 10
+[sw1-Ethernet0/0/1]stp disable 
+[sw1]int e0/0/2
+[sw1-Ethernet0/0/2]port link-type access
+[sw1-Ethernet0/0/2]port default vlan 20
+[sw1-Ethernet0/0/2]stp disable 
+[sw3-port-group-1]group-member e0/0/3 e0/0/4	
+[sw3-port-group-1]port link-type trunk  	
+[sw3-port-group-1]port trunk allow-pass vlan all
+
+2)配置生成树区域和实例：sw1,sw2,sw3
+[sw1]stp region-configuration 
+[sw1-mst-region]region-name ntd1909
+[sw1-mst-region]instance 1 vlan 10
+[sw1-mst-region]instance 2 vlan 20	
+[sw1-mst-region]active region-configuration
+
+3)指定每个实例的根网桥
+[sw1]stp instance 1 priority 4096
+[sw2]stp instance 2 priority 4096
+
+	
+
+
+
+
+
+
+		
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

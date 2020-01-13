@@ -1,0 +1,106 @@
+#配置mstp
+sw1:
+u t m
+sys
+sys sw1
+#配置vlan,trunk
+vlan batch 10 20 30 40
+int e0/0/1
+port link-type access
+port default vlan 10
+stp disable
+int e0/0/2
+port link-type access
+port default vlan 20
+stp disable
+quit
+port-group 1
+group-member e0/0/3 e0/0/4
+port link-type trunk
+port trunk allow-pass vlan all
+#配置mstp
+stp region-configuration 
+region-name ntd1909
+instance 1 vlan 10 20
+instance 2 vlan 30 40
+active region-configuration 
+quit
+stp instance 1 priority 4096
+
+
+sw2:
+u t m
+sys
+sys sw2
+#配置vlan,trunk
+vlan batch 10 20 30 40
+int e0/0/1
+port link-type access
+port default vlan 30
+stp disable
+int e0/0/2
+port link-type access
+port default vlan 40
+stp disable
+quit
+port-group 1
+group-member e0/0/3 e0/0/4
+port link-type trunk
+port trunk allow-pass vlan all
+#配置mstp
+stp region-configuration 
+region-name ntd1909
+instance 1 vlan 10 20
+instance 2 vlan 30 40
+active region-configuration 
+quit
+stp instance 2 priority 4096
+
+
+sw3:
+u t m
+sys
+sys sw3
+#配置vlan,trunk
+vlan batch 10 20 30 40
+port-group 1
+group-member e0/0/1 to e0/0/3
+port link-type trunk
+port trunk allow-pass vlan all
+#配置mstp
+stp region-configuration 
+region-name ntd1909
+instance 1 vlan 10 20
+instance 2 vlan 30 40
+active region-configuration 
+
+#配置三层交换机
+#配置trunk端口
+int g0/0/1
+port link-type trunk
+#创建vlan
+vlan batch 10 20 30 40
+#配置dhcp服务
+dhcp enable
+#配置路由虚接口IP地址,启用dhcp接口模式
+int vlanif 10 
+ip address 192.168.10.1 24
+dhcp select interface
+int vlanif 20 
+ip address 192.168.20.1 24
+dhcp select interface
+int vlanif 30 
+ip address 192.168.30.1 24
+dhcp select interface
+int vlanif 40 
+ip address 192.168.40.1 24
+dhcp select interface
+
+
+
+
+
+
+
+
+

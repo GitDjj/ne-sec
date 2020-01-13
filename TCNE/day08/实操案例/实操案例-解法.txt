@@ -1,0 +1,260 @@
+
+实验名称：VRRP 综合配置
+实验拓扑：
+实验需求：
+实验思路： 
+   1.配置终端设备
+   2.配置网络设备
+       -配置交换机
+	      @配置基本信息
+		  @创建 VLAN 
+		  @配置接口 
+	   -配置路由器
+	      @配置接口IP地址
+		  @配置 VRRP 
+		  @配置 OSPF
+	3.配置远程访问控制
+	   -配置SW1的管理IP和路由；
+	   -配置R1的远程管理；
+	      @开启认证
+		  @配置AAA用户名和密码；
+	   -配置R2的远程管理；
+	      @开启认证
+		  @配置AAA用户名和密码；
+       -在R1/R2配置 ACL ，仅允许 SW1 远程登录 
+	      @创建ACL
+		  @调用ACL
+    4.验证与测试
+	   - PC-1 与 PC-2 可以互通； 
+	   - SW1 可以远程登录 R1/R2 
+	   - 将 SW1 的 IP 地址修改之后，再次登录 R1/R2 ，不能成功；
+
+配置命令： 
+
+1.配置终端设备： 
+    PC-1： 
+	  192.168.10.1
+	  255.255.255.0
+	  192.168.10.254 --> 虚拟网关IP地址； 
+    PC-2： 
+	  192.168.20.1
+	  255.255.255.0
+	  192.168.20.254 --> 虚拟网关IP地址； 
+
+
+2.1 配置网络设备 - SW1 
+
+SW1：
+
+undo terminal monitor
+system-view
+sysname SW1 
+vlan 10     // 创建 vlan 10 
+ quit 
+vlan 20    // 创建 vlan 20 
+ quit 
+
+interface gi0/0/3  // 连接 PC-1 的接口
+  port link-type access
+  port default vlan 10
+  quit 
+  
+interface gi0/0/4   // 连接 PC-2 的接口 
+  port link-type access 
+  port default vlan 20
+  quit 
+
+interface gi0/0/1  // 连接 R1 的接口 
+  port link-type trunk 
+  port trunk allow-pass vlan all 
+  quit 
+
+interface gi0/0/2                   // 连接 R2 的接口
+  port link-type trunk 
+  port trunk allow-pass vlan all 
+  quit 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`  
+  
+2.2 配置网络设备 - 路由器 
+
+ R1： 
+ undo terminal monitor
+ system-view
+ sysname R1 
+ 
+interface GigabitEthernet0/0/0.10         // R1 在 vlan 10 上的真实网关接口；
+ dot1q termination vid 10                 //封装使用的 vlan id  为 10 ； 
+ ip address 192.168.10.251 255.255.255.0  // 配置vlan10的真实网关接口IP地址；
+ arp broadcast enable                     //必须开启 ARP 广播功能； 
+ 
+ vrrp vrid 10 virtual-ip 192.168.10.254   // 配置 VLAN 10 的 VRRP ； 
+ vrrp vrid 10 priority 200                // 配置 VLAN 10 的 优先级为 200 ； 
+
+
+interface GigabitEthernet0/0/0.20         // R1 在 vlan 20 上的真实网关接口；
+ dot1q termination vid 20                 //封装使用的 vlan id  为 20 ；
+ ip address 192.168.20.251 255.255.255.0  // 配置vlan20 的 真实网关接口IP地址；
+ arp broadcast enable                     // 开启 ARP 广播功能；
+ 
+ vrrp vrid 20 virtual-ip 192.168.20.254   // 配置 vlan 20 的 VRRP ；
+
+
+interface gi0/0/1     // 连接 R2 的接口 
+  ip address 192.168.12.1 24  
+  quit
+  
+
+ospf 1 router-id 1.1.1.1                 //启用 OSPF 协议 
+  area 0                                 //进入 区域 0 
+    network 192.168.12.0 0.0.0.255       // 将 R1-R2 之间宣告进入到区域 0 
+	quit 
+	quit 
+	
+interface gi0/0/1 
+   ospf network-type p2p -> 修改OSPF 网络类型为 "点到点" ;确保没有2类LSA ； 
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~·
+
+R2： 
+  undo terminal monitor
+  system-view
+  sysname R2 
+  
+interface GigabitEthernet0/0/0.10  -->  vlan 10 的网关接口
+ dot1q termination vid 10
+ arp broadcast enable
+ ip address 192.168.10.252 255.255.255.0 
+ 
+ vrrp vrid 10 virtual-ip 192.168.10.254 --> 配置 VLAN 的 VRRP ；
+
+#
+interface GigabitEthernet0/0/0.20 --> vlan 20 的网关接口 
+ dot1q termination vid 20
+ ip address 192.168.20.252 255.255.255.0 
+ arp broadcast enable
+ 
+ vrrp vrid 20 virtual-ip 192.168.20.254 -->配置 VLAN 20 的 VRRP ，
+ vrrp vrid 20 priority 200              -->配置 VLAN 20 的 VRRP 优先级为200 ； 
+
+#
+interface GigabitEthernet0/0/1    ---> 连接 R1 的接口； 
+ ip address 192.168.12.2 255.255.255.0 
+ quit 
+ 
+ospf 1 router-id 2.2.2.2
+  area 0 
+    network 192.168.12.0 0.0.0.255
+	quit 
+	quit 
+
+interface gi0/0/1 
+   ospf network-type p2p -> 修改网络类型为点到点，确保没有2类LSA；
+
+
+============================================================================
+
+3.配置远程访问
+
+ -配置SW1的管理IP和路由；
+ 
+   SW1： 
+   
+      interface vlanif 10 
+	    ip address 192.168.10.88 24
+		quit 
+		 
+	 ip route-static 0.0.0.0  0   192.168.10.254 
+	 
+	 
+ -配置 R1 的 远程管理
+ 
+    acl 2000 
+	  rule 10 permit source  192.168.10.88  0.0.0.0 
+	  quit 
+
+    aaa 
+      local-user HCIE password cipher HUAWEI
+      local-user HCIE service-type telnet 
+      local-user HCIE privilege level 15
+      quit 	  
+	
+	user-interface vty 0 4 
+	  authentication-mode aaa 
+	  acl 2000 inbound 
+	  quit 
+	  
+ -配置 R2 的 远程管理
+ 
+    acl 2000 
+	  rule 10 permit source  192.168.10.88  0.0.0.0 
+	  quit 
+
+    aaa 
+      local-user HCIE password cipher HUAWEI
+      local-user HCIE service-type telnet 
+      local-user HCIE privilege level 15
+      quit 	  
+	
+	user-interface vty 0 4 
+	  authentication-mode aaa 
+	  acl 2000 inbound 
+	  quit 	
+
+==============================================================================
+
+4.验证与测试： 
+
+  PC1： 
+    ping 192.168.20.1 ，应该是通的； 
+	
+  SW1： 
+    telnet  192.168.12.1 ，应该成功；
+	telnet  192.168.12.2 ，应该成功； 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
